@@ -17,4 +17,13 @@ Route::middleware('auth:sanctum')->group(function () {
         Route::put('/{id}', 'App\Http\Controllers\CategoryController@updateCategory');
         Route::delete('/{id}', 'App\Http\Controllers\CategoryController@deleteCategory');
     });
+
+    // products route
+    Route::prefix('/product')->group(function () {
+        Route::get('/', 'App\Http\Controllers\ProductController@getAllProducts');
+        Route::get('/{id}', 'App\Http\Controllers\ProductController@getProduct');
+        Route::post('/', 'App\Http\Controllers\ProductController@createProduct');
+        Route::put('/{id}', 'App\Http\Controllers\ProductController@updateProduct');
+        Route::delete('/{id}', 'App\Http\Controllers\ProductController@deleteProduct');
+    });
 });
