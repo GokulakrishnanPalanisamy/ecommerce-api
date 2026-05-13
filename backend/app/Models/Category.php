@@ -8,5 +8,5 @@ use Illuminate\Database\Eloquent\Model;
 #[Fillable(['name','slug','description'])]
 class Category extends Model
 {
-    //
+
 }

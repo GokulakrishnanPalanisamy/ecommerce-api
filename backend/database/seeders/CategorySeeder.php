@@ -15,26 +15,29 @@ class CategorySeeder extends Seeder
     {
         Category::insert([
             [
-                'name' => 'cosmetics',
+                'id' => 1,
+                'name' => 'Cosmetics',
                 'slug' => 'cosmetics',
-                'description' => 'Cosmetics description',
+                'description' => 'Cosmetics products',
                 'created_at' => now(),
                 'updated_at' => now(),
             ],
             [
-                'name' => 'electronics',
+                'id' => 2,
+                'name' => 'Electronics',
                 'slug' => 'electronics',
-                'description' => 'Electronics description',
+                'description' => 'Electronic products',
                 'created_at' => now(),
                 'updated_at' => now(),
             ],
             [
-                'name' => 'clothing',
+                'id' => 3,
+                'name' => 'Clothing',
                 'slug' => 'clothing',
-                'description' => 'Clothing description',
+                'description' => 'Fashion and clothing products',
                 'created_at' => now(),
                 'updated_at' => now(),
-            ]
+            ],
         ]);
     }
 }
