@@ -12,7 +12,12 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        //
+
+        $middleware->api(append:[
+            // force all api that accepts json
+            \App\Http\Middleware\ForceAcceptJson::class,
+        ]);
+
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

@@ -2,124 +2,185 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\ProductRequest;
+use App\Mappers\ProductMappers;
 use App\Models\Product;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpFoundation\Response As StatusCode;
 
 class ProductController extends Controller
 {
     public function getAllProducts()
     {
-        $products = Cache::remember('products.all', 60, function () {
+        try {
 
-            return Product::select(
-                'id',
-                'category_id',
-                'name',
-                'slug',
-                'price',
-                'stock',
-                'description'
-            )->get()->toArray();
+            $products = Cache::remember('allProducts', 600, function () {
+                return ProductMappers::mapProducts(Product::all());
+            });
 
-        });
+            return response()->json([
+                'success' => true,
+                'message' => 'Products fetched successfully',
+                'data' => $products,
+            ], StatusCode::HTTP_OK);
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Products fetched successfully',
-            'data' => $products,
-        ], 200);
+        } catch (ModelNotFoundException $e) {
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Products Model not found',
+            ], StatusCode::HTTP_NOT_FOUND);
+
+        } catch (\Exception $e) {
+
+            \Log::error('Get Products Error' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Something went wrong',
+                'error' => $e->getMessage(),
+            ], StatusCode::HTTP_INTERNAL_SERVER_ERROR);
+
+        }
     }
 
     public function getProduct($id)
     {
         try {
 
-            $product = Cache::remember("products.{$id}", 60, function () use ($id) {
-
-                return Product::select(
-                    'id',
-                    'category_id',
-                    'name',
-                    'slug',
-                    'price',
-                    'stock',
-                    'description'
-                )->findOrFail($id)->toArray();
-
+            $product = Cache::remember("product.{$id}", 60, function () use ($id) {
+                return ProductMappers::mapProduct(Product::findOrFail($id));
             });
 
             return response()->json([
                 'success' => true,
                 'message' => 'Product fetched successfully',
                 'data' => $product,
-            ], 200);
+            ], StatusCode::HTTP_OK);
 
         } catch (ModelNotFoundException $e) {
 
             return response()->json([
                 'success' => false,
-                'message' => 'Product not found',
-            ], 404);
+                'message' => 'Product Model not found',
+            ], StatusCode::HTTP_NOT_FOUND);
+
+        } catch (\Exception $e) {
+
+            \Log::error('Get Product Error' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Something went wrong',
+                'error' => $e->getMessage(),
+            ], StatusCode::HTTP_INTERNAL_SERVER_ERROR);
 
         }
     }
 
-    public function createProduct(Request $request)
+    public function createProduct(ProductRequest $request)
     {
-        $validated = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'category_id' => ['required', 'exists:categories,id'],
-            'slug' => ['required', 'string', 'unique:products,slug'],
-            'price' => ['required', 'numeric', 'min:0'],
-            'stock' => ['required', 'integer', 'min:0'],
-            'description' => ['nullable', 'string'],
-        ]);
+        try {
 
-        $product = Product::create($validated);
+            $validated = $request->validated();
+            $product = Product::create([
+                'name' => $validated['name'],
+                'slug' => $validated['slug'],
+                'description' => $validated['description'],
+                'price' => $validated['price'],
+                'stock' => $validated['stock'],
+            ]);
 
-        Cache::forget('products.all');
+            if (!empty($validated['category_ids'])) {
+                $product->categories()->attach($validated['category_ids']);
+            }
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Product created successfully',
-            'data' => $product,
-        ], 201);
+            Cache::forget('all-products');
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Product created successfully',
+                'data' => ProductMappers::mapProduct($product),
+            ], StatusCode::HTTP_CREATED);
+
+        } catch (ModelNotFoundException $e) {
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Product Model not found',
+            ], StatusCode::HTTP_NOT_FOUND);
+
+        }  catch (\Exception $e) {
+
+            \Log::error('Create Product Error' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Something went wrong',
+                'error' => $e->getMessage(),
+            ], StatusCode::HTTP_INTERNAL_SERVER_ERROR);
+        }
+
+
     }
 
-    public function updateProduct(Request $request, $id)
+    public function updateProduct(ProductRequest $request, $id)
     {
+
         try {
 
             $product = Product::findOrFail($id);
 
-            $validated = $request->validate([
-                'name' => ['required', 'string', 'max:255'],
-                'category_id' => ['required', 'exists:categories,id'],
-                'slug' => ['required', 'string', 'unique:products,slug,' . $id],
-                'price' => ['required', 'numeric', 'min:0'],
-                'stock' => ['required', 'integer', 'min:0'],
-                'description' => ['nullable', 'string'],
+            $validated = $request->validated();
+
+            $product->update([
+                'name' => $validated['name'],
+                'slug' => $validated['slug'],
+                'description' => $validated['description'],
+                'price' => $validated['price'],
+                'stock' => $validated['stock'],
             ]);
 
-            $product->update($validated);
+            if (!empty($validated['category_ids'])) {
+                $product->categories()->sync($validated['category_ids']);
+            }
 
-            Cache::forget('products.all');
-            Cache::forget("products.{$id}");
+            Cache::forget('all-products');
+            Cache::forget("product.{$id}");
 
             return response()->json([
                 'success' => true,
                 'message' => 'Product updated successfully',
-                'data' => $product->fresh(),
-            ], 200);
+                'data' => ProductMappers::mapProduct($product),
+            ], StatusCode::HTTP_OK);
 
         } catch (ModelNotFoundException $e) {
 
             return response()->json([
                 'success' => false,
                 'message' => 'Product not found',
-            ], 404);
+            ], StatusCode::HTTP_NOT_FOUND);
+
+        } catch (ValidationException $e) {
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Validation Error',
+                'error' => $e->getMessage(),
+            ], StatusCode::HTTP_UNPROCESSABLE_ENTITY);
+
+        } catch (\Exception $e) {
+
+            \Log::error('Update Product Error' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Something went wrong',
+                'error' => $e->getMessage(),
+            ], StatusCode::HTTP_INTERNAL_SERVER_ERROR);
 
         }
     }
@@ -132,8 +193,8 @@ class ProductController extends Controller
 
             $product->delete();
 
-            Cache::forget('products.all');
-            Cache::forget("products.{$id}");
+            Cache::forget('all-products');
+            Cache::forget("product.{$id}");
 
             return response()->json([
                 'success' => true,

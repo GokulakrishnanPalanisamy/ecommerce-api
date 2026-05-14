@@ -2,10 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\CategoryRequest;
 use App\Models\Category;
-use Illuminate\Http\Request;
+use App\Mappers\CategoryMapper;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpFoundation\Response As StatusCode;
 
 class CategoryController extends Controller
 {
@@ -17,20 +20,13 @@ class CategoryController extends Controller
         try {
 
             $categories = Cache::remember('all-categories', 600, function () {
-
-                return Category::select(
-                    'id',
-                    'name',
-                    'slug',
-                    'description',
-                )->get()->toArray();
-
+               return CategoryMapper::mapCategory(Category::all());
             });
 
             return response()->json([
                 'success' => true,
                 'data' => $categories
-            ], 200);
+            ], StatusCode::HTTP_OK);
 
         } catch (\Exception $e) {
 
@@ -39,7 +35,7 @@ class CategoryController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to fetch categories'
-            ], 500);
+            ], StatusCode::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -51,22 +47,20 @@ class CategoryController extends Controller
         try {
 
             $category = Cache::remember("category-{$id}", 600, function () use ($id) {
-
-                return Category::findOrFail($id)->toArray();
-
+                return CategoryMapper::mapCategory(Category::findOrFail($id));
             });
 
             return response()->json([
                 'success' => true,
                 'data' => $category
-            ], 200);
+            ], StatusCode::HTTP_OK);
 
         } catch (ModelNotFoundException $e) {
 
             return response()->json([
                 'success' => false,
                 'message' => 'Category not found'
-            ], 404);
+            ], StatusCode::HTTP_NOT_FOUND);
 
         } catch (\Exception $e) {
 
@@ -75,22 +69,19 @@ class CategoryController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Something went wrong'
-            ], 500);
+            ], StatusCode::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
     /**
      * Create category
      */
-    public function createCategory(Request $request)
+    public function createCategory(CategoryRequest $request)
     {
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'slug' => 'required|string|unique:categories,slug',
-            'description' => 'nullable|string',
-        ]);
 
         try {
+
+            $validated = $request->validated();
 
             $category = Category::create($validated);
 
@@ -99,8 +90,15 @@ class CategoryController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Category created successfully',
-                'data' => $category
-            ], 201);
+                'data' => CategoryMapper::mapCategory($category)
+            ], StatusCode::HTTP_CREATED);
+
+        } catch (ModelNotFoundException $e) {
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Category Model not found'
+            ], StatusCode::HTTP_NOT_FOUND);
 
         } catch (\Exception $e) {
 
@@ -109,22 +107,18 @@ class CategoryController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to create category'
-            ], 500);
+            ], StatusCode::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
     /**
      * Update category
      */
-    public function updateCategory(Request $request, $id)
+    public function updateCategory(CategoryRequest $request, $id)
     {
-        $validated = $request->validate([
-            'name' => 'required|string|max:255',
-            'slug' => 'required|string|unique:categories,slug,' . $id,
-            'description' => 'nullable|string',
-        ]);
-
         try {
+
+            $validated = $request->validated();
 
             $category = Category::findOrFail($id);
 
@@ -136,15 +130,15 @@ class CategoryController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Category updated successfully',
-                'data' => $category->fresh()
-            ], 200);
+                'data' => CategoryMapper::mapCategory($category->refresh())
+            ], StatusCode::HTTP_OK);
 
         } catch (ModelNotFoundException $e) {
 
             return response()->json([
                 'success' => false,
                 'message' => 'Category not found'
-            ], 404);
+            ], StatusCode::HTTP_NOT_FOUND);
 
         } catch (\Exception $e) {
 
@@ -153,7 +147,7 @@ class CategoryController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to update category'
-            ], 500);
+            ], StatusCode::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 
@@ -174,14 +168,14 @@ class CategoryController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'Category deleted successfully'
-            ], 200);
+            ], StatusCode::HTTP_OK);
 
         } catch (ModelNotFoundException $e) {
 
             return response()->json([
                 'success' => false,
                 'message' => 'Category not found'
-            ], 404);
+            ], StatusCode::HTTP_NOT_FOUND);
 
         } catch (\Exception $e) {
 
@@ -190,7 +184,7 @@ class CategoryController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Failed to delete category'
-            ], 500);
+            ], StatusCode::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 }

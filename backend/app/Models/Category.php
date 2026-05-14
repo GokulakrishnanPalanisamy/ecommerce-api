@@ -8,5 +8,8 @@ use Illuminate\Database\Eloquent\Model;
 #[Fillable(['name','slug','description'])]
 class Category extends Model
 {
-
+    public function products()
+    {
+        return $this->belongsToMany(Product::class);
+    }
 }
