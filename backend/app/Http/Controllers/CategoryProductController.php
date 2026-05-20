@@ -2,9 +2,11 @@
 
 namespace App\Http\Controllers;
 
+use App\Mappers\CategoryMapper;
+use App\Mappers\ProductMappers;
 use App\Models\Category;
 use App\Models\Product;
-use Illuminate\Http\Request;
+use Symfony\Component\HttpFoundation\Response As StatusCode;
 
 class CategoryProductController extends Controller
 {
@@ -16,23 +18,49 @@ class CategoryProductController extends Controller
             $products = [];
 
             foreach ($data->products as $product) {
-                $products[] = [
-                    'id' => $product->id,
-                    'name' => $product->name,
-                    'slug' => $product->slug,
-                    'price' => $product->price,
-                    'stock' => $product->stock,
-                    'description' => $product->description,
-                ];
+                $products[] = ProductMappers::mapProduct($product);
             }
 
             return response()->json([
-                'products' => $products,
-            ]);
-        } catch (\Throwable $th) {
+                'message' => 'Product fetched successfully',
+                'data' => $products,
+            ], StatusCode::HTTP_OK);
+
+        } catch (\Exception $e) {
+
+            \Log::error('Get Product by Category ID' . $e->getMessage());
+
             return response()->json([
-                'message' => $th->getMessage()
-            ]);
+                'message' => 'Something went wrong',
+            ], StatusCode::HTTP_INTERNAL_SERVER_ERROR);
+
+        }
+    }
+
+    public function getCategoryByProductId($id)
+    {
+        try {
+            $product = Product::findOrFail($id);
+
+            $categories = [];
+
+            foreach ($product->categories as $category) {
+                $categories[] = CategoryMapper::mapCategory($category);
+            }
+
+            return response()->json([
+                'message' => 'Category fetched successfully',
+                'data' => $categories,
+            ], StatusCode::HTTP_OK);
+
+        } catch (\Exception $e) {
+
+            \Log::error('Get Category by Product ID Error' . $e->getMessage());
+
+            return response()->json([
+                'message' => 'Something went wrong',
+                'error' => $e->getMessage(),
+            ], StatusCode::HTTP_INTERNAL_SERVER_ERROR);
         }
     }
 }

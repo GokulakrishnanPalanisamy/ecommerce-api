@@ -7,7 +7,6 @@ use App\Models\Category;
 use App\Mappers\CategoryMapper;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
-use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpFoundation\Response As StatusCode;
 
 class CategoryController extends Controller
@@ -85,8 +84,6 @@ class CategoryController extends Controller
 
             $category = Category::create($validated);
 
-            Cache::forget('all-categories');
-
             return response()->json([
                 'success' => true,
                 'message' => 'Category created successfully',
@@ -124,9 +121,6 @@ class CategoryController extends Controller
 
             $category->update($validated);
 
-            Cache::forget('all-categories');
-            Cache::forget("category-{$id}");
-
             return response()->json([
                 'success' => true,
                 'message' => 'Category updated successfully',
@@ -158,12 +152,17 @@ class CategoryController extends Controller
     {
         try {
 
-            $category = Category::findOrFail($id);
+            $category = Category::with('products')->findOrFail($id);
+
+            $associated_product_ids = $category['products']->pluck('id')->toArray();
+
+            foreach ($associated_product_ids as $associated_product_id) {
+                Cache::forget("product.{$associated_product_id}");
+            }
+
+            $category->products()->detach();
 
             $category->delete();
-
-            Cache::forget('all-categories');
-            Cache::forget("category-{$id}");
 
             return response()->json([
                 'success' => true,

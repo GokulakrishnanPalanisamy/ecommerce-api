@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use App\Http\Requests\ProductRequest;
 use App\Mappers\ProductMappers;
 use App\Models\Product;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Validation\ValidationException;
@@ -17,8 +16,9 @@ class ProductController extends Controller
     {
         try {
 
-            $products = Cache::remember('allProducts', 600, function () {
-                return ProductMappers::mapProducts(Product::all());
+            $products = Cache::remember('all-products', 600, function () {
+                $products = Product::all();
+                return ProductMappers::mapProducts($products);
             });
 
             return response()->json([
@@ -98,8 +98,6 @@ class ProductController extends Controller
                 $product->categories()->attach($validated['category_ids']);
             }
 
-            Cache::forget('all-products');
-
             return response()->json([
                 'success' => true,
                 'message' => 'Product created successfully',
@@ -148,9 +146,6 @@ class ProductController extends Controller
                 $product->categories()->sync($validated['category_ids']);
             }
 
-            Cache::forget('all-products');
-            Cache::forget("product.{$id}");
-
             return response()->json([
                 'success' => true,
                 'message' => 'Product updated successfully',
@@ -163,14 +158,6 @@ class ProductController extends Controller
                 'success' => false,
                 'message' => 'Product not found',
             ], StatusCode::HTTP_NOT_FOUND);
-
-        } catch (ValidationException $e) {
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Validation Error',
-                'error' => $e->getMessage(),
-            ], StatusCode::HTTP_UNPROCESSABLE_ENTITY);
 
         } catch (\Exception $e) {
 
@@ -193,13 +180,10 @@ class ProductController extends Controller
 
             $product->delete();
 
-            Cache::forget('all-products');
-            Cache::forget("product.{$id}");
-
             return response()->json([
                 'success' => true,
                 'message' => 'Product deleted successfully',
-            ], 200);
+            ], StatusCode::HTTP_OK);
 
         } catch (ModelNotFoundException $e) {
 

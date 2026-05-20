@@ -19,7 +19,7 @@ class ProductMappers
         ];
     }
 
-    public function mapProducts($products)
+    public static function mapProducts($products)
     {
         return $products->map(function ($product) {
             return [

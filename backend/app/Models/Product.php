@@ -2,13 +2,14 @@
 
 namespace App\Models;
 
+use App\Observers\ProductObserver;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Attributes\ObservedBy;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 
+#[Fillable(['name', 'slug', 'price', 'stock', 'description'])]
+#[ObservedBy(ProductObserver::class)]
 
-#[Fillable(['name', 'category_id', 'slug', 'price', 'stock', 'description'])]
 class Product extends Model
 {
     public function categories()
